@@ -103,7 +103,7 @@ def bbox_mapping_back(bboxes, img_shape, scale_factor, flip):
     return new_bboxes
 
 
-def bbox2roi(bbox_list):
+def bbox2roi(bbox_list, stack=True):
     """Convert a list of bboxes to roi format.
 
     Args:
@@ -121,9 +121,11 @@ def bbox2roi(bbox_list):
         else:
             rois = bboxes.new_zeros((0, 5))
         rois_list.append(rois)
-    rois = torch.cat(rois_list, 0)
+    if stack:
+        rois = torch.cat(rois_list, 0)
+    else:
+        rois = rois_list
     return rois
-
 
 def roi2bbox(rois):
     bbox_list = []
@@ -154,3 +156,25 @@ def bbox2result(bboxes, labels, num_classes):
         bboxes = bboxes.cpu().numpy()
         labels = labels.cpu().numpy()
         return [bboxes[labels == i, :] for i in range(num_classes - 1)]
+
+def bbox2result_with_id(bboxes, labels, obj_ids, num_classes):
+    """Convert detection results to a list of numpy arrays.
+
+    Args:
+        bboxes (Tensor): shape (n, 5)
+        labels (Tensor): shape (n, )
+        num_classes (int): class number, including background class
+
+    Returns:
+        list(ndarray): bbox results of each class
+    """
+    if bboxes.shape[0] == 0:
+        return dict()
+    else:
+        bboxes = bboxes.cpu().numpy()
+        labels = labels.cpu().numpy()
+        results={}
+        for bbox, label, obj_id in zip(bboxes, labels, obj_ids):
+          if obj_id >= 0:
+            results[obj_id]={'bbox': bbox, 'label':label}
+        return results

@@ -106,7 +106,6 @@ if __name__ == '__main__':
         setup_requires=['pytest-runner'],
         tests_require=['pytest'],
         install_requires=[
-            'mmcv', 'numpy', 'matplotlib', 'six', 'terminaltables',
-            'pycocotools'
+            'mmcv', 'numpy', 'matplotlib', 'six', 'terminaltables'
         ],
         zip_safe=False)

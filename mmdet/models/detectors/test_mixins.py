@@ -92,6 +92,7 @@ class MaskTestMixin(object):
                          img_meta,
                          det_bboxes,
                          det_labels,
+                         det_obj_ids=None,
                          rescale=False):
         # image shape of the first image in the batch (only one)
         ori_shape = img_meta[0]['ori_shape']
@@ -109,7 +110,7 @@ class MaskTestMixin(object):
             mask_pred = self.mask_head(mask_feats)
             segm_result = self.mask_head.get_seg_masks(
                 mask_pred, _bboxes, det_labels, self.test_cfg.rcnn, ori_shape,
-                scale_factor, rescale)
+                scale_factor, rescale, det_obj_ids=det_obj_ids)
         return segm_result
 
     def aug_test_mask(self, feats, img_metas, det_bboxes, det_labels):

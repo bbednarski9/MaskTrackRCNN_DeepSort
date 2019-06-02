@@ -4,6 +4,7 @@ from .roi_extractors import *  # noqa: F401,F403
 from .anchor_heads import *  # noqa: F401,F403
 from .bbox_heads import *  # noqa: F401,F403
 from .mask_heads import *  # noqa: F401,F403
+from .track_heads import *
 from .detectors import *  # noqa: F401,F403
 from .registry import BACKBONES, NECKS, ROI_EXTRACTORS, HEADS, DETECTORS
 from .builder import (build_backbone, build_neck, build_roi_extractor,

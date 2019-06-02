@@ -2,9 +2,35 @@ import mmcv
 import numpy as np
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
+from pycocotools.ytvos import YTVOS
+from pycocotools.ytvoseval import YTVOSeval
 
 from .recall import eval_recalls
 
+
+def ytvos_eval(result_file, result_types, ytvos, max_dets=(100, 300, 1000)):
+
+    if mmcv.is_str(ytvos):
+        ytvos = YTVOS(ytvos)
+    assert isinstance(ytvos, YTVOS)
+
+    if len(ytvos.anns) == 0:
+        print("Annotations does not exist")
+        return
+    assert result_file.endswith('.json')
+    ytvos_dets = ytvos.loadRes(result_file)
+
+    vid_ids = ytvos.getVidIds()
+    for res_type in result_types:
+        iou_type = res_type
+        ytvosEval = YTVOSeval(ytvos, ytvos_dets, iou_type)
+        ytvosEval.params.vidIds = vid_ids
+        if res_type == 'proposal':
+            ytvosEval.params.useCats = 0
+            ytvosEval.params.maxDets = list(max_dets)
+        ytvosEval.evaluate()
+        ytvosEval.accumulate()
+        ytvosEval.summarize()
 
 def coco_eval(result_file, result_types, coco, max_dets=(100, 300, 1000)):
     for res_type in result_types:
@@ -136,6 +162,48 @@ def segm2json(dataset, results):
                 json_results.append(data)
     return json_results
 
+def results2json_videoseg(dataset, results, out_file):
+    json_results = []
+    vid_objs = {}
+    for idx in range(len(dataset)):
+      # assume results is ordered
+
+      vid_id, frame_id = dataset.img_ids[idx]
+      if idx == len(dataset) - 1 :
+        is_last = True
+      else:
+        _, frame_id_next = dataset.img_ids[idx+1]
+        is_last = frame_id_next == 0
+      det, seg = results[idx]
+      for obj_id in det:
+        bbox = det[obj_id]['bbox']
+        segm = seg[obj_id]
+        label = det[obj_id]['label']
+        if obj_id not in vid_objs:
+          vid_objs[obj_id] = {'scores':[],'cats':[], 'segms':{}}
+        vid_objs[obj_id]['scores'].append(bbox[4])
+        vid_objs[obj_id]['cats'].append(label)
+        segm['counts'] = segm['counts'].decode()
+        vid_objs[obj_id]['segms'][frame_id] = segm
+      if is_last:
+        # store results of  the current video
+        for obj_id, obj in vid_objs.items():
+          data = dict()
+
+          data['video_id'] = vid_id + 1
+          data['score'] = np.array(obj['scores']).mean().item()
+          # majority voting for sequence category
+          data['category_id'] = np.bincount(np.array(obj['cats'])).argmax().item() + 1
+          vid_seg = []
+          for fid in range(frame_id + 1):
+            if fid in obj['segms']:
+              vid_seg.append(obj['segms'][fid])
+            else:
+              vid_seg.append(None)
+          data['segmentations'] = vid_seg
+          json_results.append(data)
+        vid_objs = {}
+    mmcv.dump(json_results, out_file)
 
 def results2json(dataset, results, out_file):
     if isinstance(results[0], list):

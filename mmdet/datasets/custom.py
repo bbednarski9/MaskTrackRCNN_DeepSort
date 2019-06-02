@@ -47,6 +47,7 @@ class CustomDataset(Dataset):
                  with_mask=True,
                  with_crowd=True,
                  with_label=True,
+                 with_track=False,
                  extra_aug=None,
                  resize_keep_ratio=True,
                  test_mode=False):
@@ -89,6 +90,7 @@ class CustomDataset(Dataset):
         self.with_crowd = with_crowd
         # with label is False for RPN
         self.with_label = with_label
+        self.with_track = with_track
         # in test mode or not
         self.test_mode = test_mode
 

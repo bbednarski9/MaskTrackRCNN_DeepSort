@@ -68,12 +68,14 @@ class BBoxHead(nn.Module):
         neg_proposals = [res.neg_bboxes for res in sampling_results]
         pos_gt_bboxes = [res.pos_gt_bboxes for res in sampling_results]
         pos_gt_labels = [res.pos_gt_labels for res in sampling_results]
+        pos_gt_pids = [res.pos_gt_pids for res in sampling_results]
         reg_classes = 1 if self.reg_class_agnostic else self.num_classes
         cls_reg_targets = bbox_target(
             pos_proposals,
             neg_proposals,
             pos_gt_bboxes,
             pos_gt_labels,
+            pos_gt_pids,
             rcnn_train_cfg,
             reg_classes,
             target_means=self.target_means,

@@ -78,7 +78,6 @@ class ConvFCBBoxHead(BBoxHead):
             out_dim_reg = (4 if self.reg_class_agnostic else
                            4 * self.num_classes)
             self.fc_reg = nn.Linear(self.reg_last_dim, out_dim_reg)
-
     def _add_conv_fc_branch(self,
                             num_branch_convs,
                             num_branch_fcs,
@@ -127,6 +126,7 @@ class ConvFCBBoxHead(BBoxHead):
                 if isinstance(m, nn.Linear):
                     nn.init.xavier_uniform_(m.weight)
                     nn.init.constant_(m.bias, 0)
+    
 
     def forward(self, x):
         # shared part
@@ -182,3 +182,4 @@ class SharedFCBBoxHead(ConvFCBBoxHead):
             fc_out_channels=fc_out_channels,
             *args,
             **kwargs)
+

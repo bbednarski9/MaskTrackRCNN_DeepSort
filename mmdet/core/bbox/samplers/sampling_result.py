@@ -19,6 +19,11 @@ class SamplingResult(object):
         else:
             self.pos_gt_labels = None
 
+        if assign_result.pids is not None:
+            self.pos_gt_pids = assign_result.pids[pos_inds]
+        else:
+            self.pos_gt_pids = None
+
     @property
     def bboxes(self):
         return torch.cat([self.pos_bboxes, self.neg_bboxes])

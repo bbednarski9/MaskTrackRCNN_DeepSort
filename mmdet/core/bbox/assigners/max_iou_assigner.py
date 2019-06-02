@@ -40,7 +40,7 @@ class MaxIoUAssigner(BaseAssigner):
         self.gt_max_assign_all = gt_max_assign_all
         self.ignore_iof_thr = ignore_iof_thr
 
-    def assign(self, bboxes, gt_bboxes, gt_bboxes_ignore=None, gt_labels=None):
+    def assign(self, bboxes, gt_bboxes, gt_bboxes_ignore=None, gt_labels=None, gt_pids=None):
         """Assign gt to bboxes.
 
         This method assign a gt bbox to every bbox (proposal/anchor), each bbox
@@ -81,10 +81,10 @@ class MaxIoUAssigner(BaseAssigner):
             if ignore_bboxes_inds.numel() > 0:
                 overlaps[ignore_bboxes_inds[:, 0], :] = -1
 
-        assign_result = self.assign_wrt_overlaps(overlaps, gt_labels)
+        assign_result = self.assign_wrt_overlaps(overlaps, gt_labels, gt_pids)
         return assign_result
 
-    def assign_wrt_overlaps(self, overlaps, gt_labels=None):
+    def assign_wrt_overlaps(self, overlaps, gt_labels=None, gt_pids=None):
         """Assign w.r.t. the overlaps of bboxes with gts.
 
         Args:
@@ -139,8 +139,17 @@ class MaxIoUAssigner(BaseAssigner):
             if pos_inds.numel() > 0:
                 assigned_labels[pos_inds] = gt_labels[
                     assigned_gt_inds[pos_inds] - 1]
+
         else:
             assigned_labels = None
-
+        if gt_pids is not None:
+            assigned_pids = assigned_gt_inds.new_zeros((num_bboxes,))
+            pos_inds = torch.nonzero(assigned_gt_inds > 0).squeeze()
+            if pos_inds.numel() > 0:
+                assigned_pids[pos_inds] = gt_pids[
+                    assigned_gt_inds[pos_inds] - 1]
+        else:
+            assigned_pids = None
         return AssignResult(
-            num_gts, assigned_gt_inds, max_overlaps, labels=assigned_labels)
+            num_gts, assigned_gt_inds, max_overlaps, labels=assigned_labels, 
+                pids=assigned_pids)

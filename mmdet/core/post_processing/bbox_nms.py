@@ -3,7 +3,7 @@ import torch
 from mmdet.ops.nms import nms_wrapper
 
 
-def multiclass_nms(multi_bboxes, multi_scores, score_thr, nms_cfg, max_num=-1):
+def multiclass_nms(multi_bboxes, multi_scores, score_thr, nms_cfg, max_num=-1, match_ids=None):
     """NMS for multi-class bboxes.
 
     Args:
@@ -20,7 +20,7 @@ def multiclass_nms(multi_bboxes, multi_scores, score_thr, nms_cfg, max_num=-1):
             are 0-based.
     """
     num_classes = multi_scores.shape[1]
-    bboxes, labels = [], []
+    bboxes, labels, ids = [], [], []
     nms_cfg_ = nms_cfg.copy()
     nms_type = nms_cfg_.pop('type', 'nms')
     nms_op = getattr(nms_wrapper, nms_type)

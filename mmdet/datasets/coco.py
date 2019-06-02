@@ -101,7 +101,6 @@ class CocoDataset(CustomDataset):
         else:
             gt_bboxes = np.zeros((0, 4), dtype=np.float32)
             gt_labels = np.array([], dtype=np.int64)
-
         if gt_bboxes_ignore:
             gt_bboxes_ignore = np.array(gt_bboxes_ignore, dtype=np.float32)
         else:

@@ -108,7 +108,7 @@ class FCNMaskHead(nn.Module):
         return loss
 
     def get_seg_masks(self, mask_pred, det_bboxes, det_labels, rcnn_test_cfg,
-                      ori_shape, scale_factor, rescale):
+                      ori_shape, scale_factor, rescale, det_obj_ids=None):
         """Get segmentation masks from mask_pred and bboxes.
 
         Args:
@@ -130,6 +130,8 @@ class FCNMaskHead(nn.Module):
         assert isinstance(mask_pred, np.ndarray)
 
         cls_segms = [[] for _ in range(self.num_classes - 1)]
+        if det_obj_ids is not None:
+            obj_segms = {}
         bboxes = det_bboxes.cpu().numpy()[:, :4]
         labels = det_labels.cpu().numpy() + 1
 
@@ -158,6 +160,12 @@ class FCNMaskHead(nn.Module):
             im_mask[bbox[1]:bbox[1] + h, bbox[0]:bbox[0] + w] = bbox_mask
             rle = mask_util.encode(
                 np.array(im_mask[:, :, np.newaxis], order='F'))[0]
-            cls_segms[label - 1].append(rle)
-
-        return cls_segms
+            if det_obj_ids is not None:
+                if det_obj_ids[i] >= 0:
+                    obj_segms[det_obj_ids[i]] = rle
+            else:
+                cls_segms[label - 1].append(rle)
+        if det_obj_ids is not None:
+            return obj_segms
+        else:
+            return cls_segms

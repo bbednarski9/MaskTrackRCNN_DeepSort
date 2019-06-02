@@ -33,6 +33,7 @@ class BaseSampler(metaclass=ABCMeta):
                bboxes,
                gt_bboxes,
                gt_labels=None,
+               gt_pids = None,
                **kwargs):
         """Sample positive and negative bboxes.
 
@@ -44,7 +45,7 @@ class BaseSampler(metaclass=ABCMeta):
             bboxes (Tensor): Boxes to be sampled from.
             gt_bboxes (Tensor): Ground truth bboxes.
             gt_labels (Tensor, optional): Class labels of ground truth bboxes.
-
+            gt_pids (Tensor, optional): identity labels of ground truth bboxes
         Returns:
             :obj:`SamplingResult`: Sampling result.
         """
@@ -53,7 +54,7 @@ class BaseSampler(metaclass=ABCMeta):
         gt_flags = bboxes.new_zeros((bboxes.shape[0], ), dtype=torch.uint8)
         if self.add_gt_as_proposals:
             bboxes = torch.cat([gt_bboxes, bboxes], dim=0)
-            assign_result.add_gt_(gt_labels)
+            assign_result.add_gt_(gt_labels, gt_pids)
             gt_ones = bboxes.new_ones(gt_bboxes.shape[0], dtype=torch.uint8)
             gt_flags = torch.cat([gt_ones, gt_flags])
 
