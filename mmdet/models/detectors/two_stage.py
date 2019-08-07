@@ -201,7 +201,11 @@ class TwoStageDetector(BaseDetector, RPNTestMixin,
                 self.prev_det_labels = None
             return det_bboxes, det_labels, det_obj_ids
 
-        det_rois = bbox2roi([det_bboxes])
+        res_det_bboxes = det_bboxes.clone()
+        if rescale:
+            res_det_bboxes[:, :4] *= scale_factor
+
+        det_rois = bbox2roi([res_det_bboxes])
         det_roi_feats = self.bbox_roi_extractor(
             x[:self.bbox_roi_extractor.num_inputs], det_rois)
         # recompute bbox match feature
