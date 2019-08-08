@@ -20,6 +20,18 @@ We also proposed an algorithm to jointly detect, segment, and track object insta
 ## Installation
 This repo is built based on [mmdetection](https://github.com/open-mmlab/mmdetection) commit hash `f3a939f`. Please refer to [INSTALL.md](INSTALL.md) to install the library.
 You also need to install a customized [COCO API](https://github.com/youtubevos/cocoapi) for YouTubeVIS dataset.
+You can use following commands to create conda env with all dependencies.
+```
+conda create -n MaskTrackRCNN -y
+conda activate MaskTrackRCNN
+conda install -c pytorch pytorch=0.4.1 torchvision cuda92 -y
+conda install -c conda-forge cudatoolkit-dev=9.2 opencv -y
+conda install cython -y
+pip install git+https://github.com/youtubevos/cocoapi.git#"egg=pycocotools&subdirectory=PythonAPI"
+bash compile.sh
+pip install .
+```
+You may also need to follow [#1](/../../issues/1) to load MSCOCO pretrained models.
 ## Model training and evaluation
 Our model is based on MaskRCNN-resnet50-FPN. The model is trained end-to-end on YouTubeVIS based on a MSCOCO pretrained checkpoint ([link](https://s3.ap-northeast-2.amazonaws.com/open-mmlab/mmdetection/models/mask_rcnn_r50_fpn_1x_20181010-069fa190.pth)).
 ### Training
