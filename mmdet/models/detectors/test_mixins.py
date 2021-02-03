@@ -1,13 +1,26 @@
 from mmdet.core import (bbox2roi, bbox_mapping, merge_aug_proposals,
                         merge_aug_bboxes, merge_aug_masks, multiclass_nms)
 
+import time
 
 class RPNTestMixin(object):
 
     def simple_test_rpn(self, x, img_meta, rpn_test_cfg):
+        rpn_t1 = time.clock_gettime_ns(time.CLOCK_MONOTONIC)
         rpn_outs = self.rpn_head(x)
+        rpn_t2= time.clock_gettime_ns(time.CLOCK_MONOTONIC)
+        #JANGO
+        #print("rpn_outs: ", len(rpn_outs[0][0]))
+        #print("rpn_outs: ", len(rpn_outs[1][0]))
+        #print("proposal length prime: ", len(rpn_outs))
         proposal_inputs = rpn_outs + (img_meta, rpn_test_cfg)
+        #print("proposal length [0]: ", len(proposal_inputs[0][0]))
+        #print(proposal_inputs[0][0].size())
+        #print("proposal length [1]: ", len(proposal_inputs[1]))
         proposal_list = self.rpn_head.get_bboxes(*proposal_inputs)
+        rpn_t3 = time.clock_gettime_ns(time.CLOCK_MONOTONIC)
+        #print("RPN head time: ", (rpn_t2-rpn_t1)/1000000.0)
+        #print("RPN bbox time: ", (rpn_t3-rpn_t2)/1000000.0)
         return proposal_list
 
     def aug_test_rpn(self, feats, img_metas, rpn_test_cfg):

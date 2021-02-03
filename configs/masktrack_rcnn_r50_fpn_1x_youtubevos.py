@@ -39,13 +39,21 @@ model = dict(
         target_means=[0., 0., 0., 0.],
         target_stds=[0.1, 0.1, 0.2, 0.2],
         reg_class_agnostic=False),
+    # track_head=dict(
+    #     type='TrackHead',
+    #     num_fcs=2,
+    #     in_channels=256,
+    #     fc_out_channels=1024,
+    #     roi_feat_size=7,
+    #     match_coeff=[1.0,2.0, 10]
+    #     ),
     track_head=dict(
-        type='TrackHead',
+        type='DeepSortTrackHead',
         num_fcs=2,
         in_channels=256,
         fc_out_channels=1024,
         roi_feat_size=7,
-        match_coeff=[1.0,2.0, 10]
+        match_coeff=[1.0,2.0,10]
         ),
     mask_roi_extractor=dict(
         type='SingleRoIExtractor',

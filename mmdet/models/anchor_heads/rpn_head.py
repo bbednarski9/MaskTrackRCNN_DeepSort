@@ -48,6 +48,7 @@ class RPNHead(AnchorHead):
                           scale_factor,
                           cfg,
                           rescale=False):
+
         mlvl_proposals = []
         for idx in range(len(cls_scores)):
             rpn_cls_score = cls_scores[idx]
@@ -64,6 +65,12 @@ class RPNHead(AnchorHead):
             rpn_bbox_pred = rpn_bbox_pred.permute(1, 2, 0).reshape(-1, 4)
             if cfg.nms_pre > 0 and scores.shape[0] > cfg.nms_pre:
                 _, topk_inds = scores.topk(cfg.nms_pre)
+
+                # JANGO
+                #print("HELLO")
+                #print("topk_inds", len(topk_inds))
+                #topk_inds = topk_inds[0]
+
                 rpn_bbox_pred = rpn_bbox_pred[topk_inds, :]
                 anchors = anchors[topk_inds, :]
                 scores = scores[topk_inds]

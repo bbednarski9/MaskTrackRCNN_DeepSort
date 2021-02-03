@@ -3,7 +3,7 @@
 PYTHON=${PYTHON:-"python"}
 
 echo "Building roi align op..."
-cd mmdet/ops/roi_align
+cd /home/bryanbed/Projects/RoMeLa_Vision/MaskTrackRCNN/mmdet/ops/roi_align
 if [ -d "build" ]; then
     rm -r build
 fi

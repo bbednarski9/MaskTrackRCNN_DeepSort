@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from mmdet.core import (delta2bbox, multiclass_nms, bbox_target,
+from mmdet.core import (delta2bbox, multiclass_nms, multiclass_nms_withfeats, bbox_target,
                         weighted_cross_entropy, weighted_smoothl1, accuracy)
 from ..registry import HEADS
 
@@ -128,10 +128,10 @@ class BBoxHead(nn.Module):
         if cfg is None:
             return bboxes, scores
         else:
-            det_bboxes, det_labels = multiclass_nms(
+            det_bboxes, det_labels, det_features = multiclass_nms_withfeats(
                 bboxes, scores, cfg.score_thr, cfg.nms, cfg.max_per_img)
 
-            return det_bboxes, det_labels
+            return det_bboxes, det_labels, det_features
 
     def refine_bboxes(self, rois, labels, bbox_preds, pos_is_gts, img_metas):
         """Refine bboxes during training.

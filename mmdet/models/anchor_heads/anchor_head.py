@@ -11,6 +11,8 @@ from mmdet.core import (AnchorGenerator, anchor_target, delta2bbox,
                         weighted_sigmoid_focal_loss, multiclass_nms)
 from ..registry import HEADS
 
+import traceback
+
 
 @HEADS.register_module
 class AnchorHead(nn.Module):
@@ -49,6 +51,7 @@ class AnchorHead(nn.Module):
         self.anchor_scales = anchor_scales
         self.anchor_ratios = anchor_ratios
         self.anchor_strides = anchor_strides
+        print("Anchor stides: ", self.anchor_strides)
         self.anchor_base_sizes = list(
             anchor_strides) if anchor_base_sizes is None else anchor_base_sizes
         self.target_means = target_means
@@ -58,6 +61,9 @@ class AnchorHead(nn.Module):
 
         self.anchor_generators = []
         for anchor_base in self.anchor_base_sizes:
+            #print("Anchor base: ", anchor_base)
+            #print("Anchor scales: ", anchor_scales)
+            #print("Anchor ratios: ", anchor_ratios)
             self.anchor_generators.append(
                 AnchorGenerator(anchor_base, anchor_scales, anchor_ratios))
 
@@ -123,6 +129,7 @@ class AnchorHead(nn.Module):
                 multi_level_flags.append(flags)
             valid_flag_list.append(multi_level_flags)
 
+
         return anchor_list, valid_flag_list
 
     def loss_single(self, cls_score, bbox_pred, labels, label_weights,
@@ -173,7 +180,6 @@ class AnchorHead(nn.Module):
              cfg):
         featmap_sizes = [featmap.size()[-2:] for featmap in cls_scores]
         assert len(featmap_sizes) == len(self.anchor_generators)
-
         anchor_list, valid_flag_list = self.get_anchors(
             featmap_sizes, img_metas)
         sampling = False if self.use_focal_loss else True
@@ -217,6 +223,24 @@ class AnchorHead(nn.Module):
                                                    self.anchor_strides[i])
             for i in range(num_levels)
         ]
+
+        # JANGO
+        # print("ANCHOR ANALYSIS: ")
+        # print(mlvl_anchors[0].size())
+        # print(mlvl_anchors[1].size())
+        # print(mlvl_anchors[2].size())
+        # print(mlvl_anchors[3].size())
+        # print(mlvl_anchors[4].size())
+
+        # # declaring and assigning array
+        # A = [1, 2, 3, 4]
+        # # exception handling
+        # try:
+        #     value = A[5]
+        # except:
+        #     # printing stack trace
+        #     traceback.print_tb()
+
         result_list = []
         for img_id in range(len(img_metas)):
             cls_score_list = [
@@ -227,6 +251,7 @@ class AnchorHead(nn.Module):
             ]
             img_shape = img_metas[img_id]['img_shape']
             scale_factor = img_metas[img_id]['scale_factor']
+
             proposals = self.get_bboxes_single(cls_score_list, bbox_pred_list,
                                                mlvl_anchors, img_shape,
                                                scale_factor, cfg, rescale)
@@ -241,6 +266,7 @@ class AnchorHead(nn.Module):
                           scale_factor,
                           cfg,
                           rescale=False):
+
         assert len(cls_scores) == len(bbox_preds) == len(mlvl_anchors)
         mlvl_bboxes = []
         mlvl_scores = []

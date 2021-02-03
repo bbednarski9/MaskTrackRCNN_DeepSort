@@ -2,7 +2,7 @@ import argparse
 
 import torch
 import mmcv
-from mmcv.runner import load_checkpoint, parallel_test, obj_from_dict
+from mmcv.runner import load_checkpoint, obj_from_dict
 from mmcv.parallel import scatter, collate, MMDataParallel
 
 from mmdet import datasets
@@ -44,7 +44,7 @@ def parse_args():
     parser.add_argument('config', help='test config file path')
     parser.add_argument('checkpoint', help='checkpoint file')
     parser.add_argument(
-        '--save_path', 
+        '--save_path',
         type=str,
         help='path to save visual result')
     parser.add_argument(
@@ -55,8 +55,8 @@ def parse_args():
         type=int,
         help='Number of processes per GPU')
     parser.add_argument('--out', help='output result file')
-    parser.add_argument('--load_result', 
-        action='store_true', 
+    parser.add_argument('--load_result',
+        action='store_true',
         help='whether to load existing result')
     parser.add_argument(
         '--eval',
@@ -103,9 +103,8 @@ def main():
 
     if args.out:
         if not args.load_result:
-          print('writing results to {}'.format(args.out))
-        
-          mmcv.dump(outputs, args.out)
+            print('writing results to {}'.format(args.out))
+            mmcv.dump(outputs, args.out)
         eval_types = args.eval
         if eval_types:
             print('Starting evaluate {}'.format(' and '.join(eval_types)))

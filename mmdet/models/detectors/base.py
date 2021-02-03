@@ -85,7 +85,7 @@ class BaseDetector(nn.Module):
             return self.forward_train(img, img_meta, **kwargs)
         else:
             return self.forward_test(img, img_meta, **kwargs)
-    
+
     def gen_colormask(self, N=256):
         def bitget(byteval, idx):
           return ((byteval & (1 << idx)) != 0)
@@ -104,7 +104,7 @@ class BaseDetector(nn.Module):
           cmap[i] = np.array([r, g, b])
 
         self.color_mask = cmap[3:]
-    
+
     def show_result(self,
                     data,
                     result,
@@ -143,7 +143,7 @@ class BaseDetector(nn.Module):
         for img, img_meta in zip(imgs, img_metas):
             h, w, _ = img_meta['img_shape']
             #img_show = img[:h, :w, :]
-            img_show = np.zeros((h,w,3)) 
+            img_show = np.zeros((h,w,3))
             if not is_video:
               bboxes = np.vstack(bbox_result)
             else:
@@ -165,7 +165,7 @@ class BaseDetector(nn.Module):
                       color_id = obj_ids[i]
                     img_show[mask] = self.color_mask[color_id,:]
             if save_vis:
-              show = False 
+              show = False
               save_path = '{}/{}/{}.png'.format(save_path, img_meta['video_id'], img_meta['frame_id'])
             else:
               show = True
@@ -188,3 +188,109 @@ class BaseDetector(nn.Module):
                 show=show,
                 text_color ='white',
                 out_file=save_path)
+
+    def show_result_demo(self,
+                    data,
+                    result,
+                    img_norm_cfg,
+                    dataset='coco',
+                    is_video=False,
+                    save_vis=False,
+                    save_path='vis',
+                    score_thr=0.1,
+                    save_path_alt=False,
+                    save_name_alt=None,
+                    color_image=None):
+        if isinstance(result, tuple):
+            bbox_result, segm_result = result
+        else:
+            bbox_result, segm_result = result, None
+
+        img_tensor = data['img'][0]
+        img_metas = data['img_meta'][0].data[0]
+
+        imgs = tensor2imgs(img_tensor, **img_norm_cfg)
+        assert len(imgs) == len(img_metas)
+
+        if isinstance(dataset, str):
+            class_names = get_classes(dataset)
+        elif isinstance(dataset, (list, tuple)) or dataset is None:
+            class_names = dataset
+        else:
+            raise TypeError(
+                'dataset must be a valid dataset name or a sequence'
+                ' of class names, not {}'.format(type(dataset)))
+        # use colors to denote different object instances in videos
+        # for YTVOS, only refresh color_mask at the first frame of each video
+        if not hasattr(self, 'color_mask'):
+          self.gen_colormask()
+        if isinstance(bbox_result, dict) and len(bbox_result.keys()) == 0:
+            if save_path_alt == False:
+                return
+        assert len(imgs) == 1, "only support mini-batch size 1"
+        for img, img_meta in zip(imgs, img_metas):
+            h, w, _ = img_meta['img_shape']
+            #img_show = img[:h, :w, :]
+            if save_path_alt == False:
+                img_show = np.zeros((h,w,3))
+            else:
+                img_show = color_image
+            if not is_video:
+                bboxes = np.vstack(bbox_result)
+            else:
+              if len(bbox_result.values()) > 0:
+                  bboxes = np.vstack([x['bbox'] for x in bbox_result.values()])
+              else:
+                  bboxes = None
+              obj_ids = list(bbox_result.keys())
+            # draw segmentation masks
+            if segm_result is not None and len(bbox_result.values()) > 0:
+                if not is_video:
+                    segms = mmcv.concat_list(segm_result)
+                else:
+                    segms = list(segm_result.values())
+                inds = np.where(bboxes[:, -1] > score_thr)[0]
+                for i in inds:
+                    mask = maskUtils.decode(segms[i]).astype(np.bool)
+                    mask = mask[:h, :w]
+                    if not is_video:
+                      color_id = i
+                    else:
+                      color_id = obj_ids[i]
+                    if save_path_alt:
+                        # if we're doing the demo add a transparent mask
+                        img_show[mask] = np.add(img_show[mask], self.color_mask[color_id,:]) / 2
+                    else:
+                        img_show[mask] = self.color_mask[color_id,:]
+            if save_vis:
+              show = False
+              if save_path_alt:
+                  save_path = '{}/{}.png'.format(save_path, save_name_alt)
+              else:
+                  save_path = '{}/{}/{}.png'.format(save_path, img_meta['video_id'], img_meta['frame_id'])
+            else:
+              show = True
+              save_path = None
+            # draw bounding boxes
+            if dataset == 'coco':
+              labels = [
+                  np.full(bbox.shape[0], i, dtype=np.int32)
+                  for i, bbox in enumerate(bbox_result)
+              ]
+              labels = np.concatenate(labels)
+            else:
+              labels = [ x['label'] for x in bbox_result.values()]
+
+            if segm_result is not None and len(bbox_result.values()) > 0:
+                img = mmcv.imshow_det_bboxes(
+                    img_show,
+                    bboxes[:,:4],
+                    np.asarray(labels),
+                    class_names=class_names,
+                    show=show,
+                    text_color ='white',
+                    out_file=save_path)
+
+                return img
+            else:
+                return img_show
