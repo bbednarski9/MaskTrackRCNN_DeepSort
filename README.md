@@ -1,7 +1,10 @@
-# MaskTrackRCNN for video instance segmentation
+# MaskTrackRCNN with a DeepSort Tracking Head for REal-Time video instance segmentation
+# Implemented in Python with Pytorch 1.6, CUDA 10.1
 
 ## Introduction
-This repo serves as the official code release of the MaskTrackRCNN model for video instance segmentation described in the tech report:
+This repo serves as a jumping-off point for anyone looking to optimize MaskTrackRCNN instance segmentation systems for real-time applications. The primary contribution of this repo is the integration of the original MaskTrackRCNN work with DeepSort real-time object tracking. For some context, the original purpose of this work was to determine whether or not the efficiency of multi-object tracking (MOT) in a MaskTrackRCNN framework (show below) could be improved by reducing the region that needs to be search for region-proposals. See Figures 1 and 2 below for an explaination of this reasoning. In short, I found that in cases presented by the YouTube-VOS dataset, the time-reduction was un-noticable likely due to the optimization of non-max supression for the region proposal network. However, object tracking from deepsort can still be useful for tracking trajectories of objects in many real-time applications - providing a sort of "intuition" for where objects will be in future frames. I will not be integrating this code at the sytem level, so feel free to use it at will, however I will not be supportuing this repo regularly after a few weeks from this code's publication.
+
+MackTrackRCNN Paper:
 ```
 @article{ Yang2019vis,
   author = {Linjie Yang and Yuchen Fan and Ning Xu},  
@@ -12,6 +15,21 @@ This repo serves as the official code release of the MaskTrackRCNN model for vid
   url = {https://arxiv.org/abs/1905.04804}
 }
 ```
+[MaskTrackRCNN Github](https://github.com/youtubevos/MaskTrackRCNN)
+
+DeepSort Paper:
+```
+@article{ Wojke2017,
+  author = {Nicolai Wojke, Alex Bewley, Dietrich Paulus},
+  title = {Simple Online and Realtime Tracking with a Deep Association Metric},
+  journal = {arXiv},
+  volume = {Preprint},
+  url = {https://arxiv.org/abs/1703.07402}
+}
+```
+[DeepSort Python Implementatin Github](https://github.com/ZQPei/deep_sort_pytorch)
+
+
 In this work, a new task video instance segmentation is presented. Video instance segmentation extends the image instance segmentation task from the image domain to the video domain. The new problem aims at **simultaneous detection, segmentation and tracking** of object instances in videos.
 YouTubeVIS, a new dataset tailored for this task is collected based on the current largest video object segmentation dataset [YouTubeVOS](youtube-vos.org). Sample annotations of a video clip can be seen below.
 <img src='doc/sample_gt.png'>
