@@ -52,8 +52,13 @@ class Tracker:
 
         This function should be called once every time step, before `update`.
         """
+        means = []
+        covariances = []
         for track in self.tracks:
-            track.predict(self.kf)
+            mean, cov = track.predict(self.kf)
+            means.append(mean)
+            covariances.append(cov)
+        return np.array(means), np.array(covariances)
 
     def update(self, detections):
         """Perform measurement update and track management.
@@ -68,6 +73,10 @@ class Tracker:
         matches, unmatched_tracks, unmatched_detections = \
             self._match(detections)
 
+        # print("ABOUT TO MATCH?")
+        # print(len(matches))
+        # print(len(unmatched_tracks))
+        # print(len(unmatched_detections))
         # Update track set.
         for track_idx, detection_idx in matches:
             self.tracks[track_idx].update(
@@ -89,6 +98,8 @@ class Tracker:
             track.features = []
         self.metric.partial_fit(
             np.asarray(features), np.asarray(targets), active_targets)
+
+        return matches
 
     def _match(self, detections):
 
@@ -134,5 +145,5 @@ class Tracker:
         mean, covariance = self.kf.initiate(detection.to_xyah())
         self.tracks.append(Track(
             mean, covariance, self._next_id, self.n_init, self.max_age,
-            detection.feature, detection.cls_label))
+            detection.feature, detection.cls_label, detection.confidence))
         self._next_id += 1

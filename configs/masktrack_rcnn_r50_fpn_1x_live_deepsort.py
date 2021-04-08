@@ -1,5 +1,3 @@
-import torch
-
 # model settings
 model = dict(
     type='MaskRCNN',
@@ -23,6 +21,7 @@ model = dict(
         anchor_scales=[8],
         anchor_ratios=[0.5, 1.0, 2.0],
         anchor_strides=[4, 8, 16, 32, 64],
+        #anchor_strides=[64, 64, 64, 64, 64],
         target_means=[.0, .0, .0, .0],
         target_stds=[1.0, 1.0, 1.0, 1.0],
         use_sigmoid_cls=True),
@@ -41,14 +40,32 @@ model = dict(
         target_means=[0., 0., 0., 0.],
         target_stds=[0.1, 0.1, 0.2, 0.2],
         reg_class_agnostic=False),
+    # track_head=dict(
+    #     type='TrackHead',
+    #     num_fcs=2,
+    #     in_channels=256,
+    #     fc_out_channels=1024,
+    #     roi_feat_size=7,
+    #     match_coeff=[1.0,2.0, 10]
+    #     ),
     track_head=dict(
-        type='TrackHead',
-        num_fcs=2,
+        type='TrackHeadDeepSortKalmanOnly',
+        with_avg_pool=False,
+        num_fcs = 2,
         in_channels=256,
-        fc_out_channels=1024,
         roi_feat_size=7,
-        match_coeff=[1.0,2.0, 10]
-        ),
+        fc_out_channels=1024,
+        match_coeff=[1.0,2.0,10],
+        bbox_dummy_iou=0,
+        dynamic=True,
+        max_dist=0.2,
+        min_confidence=0.3,
+        nms_max_overlap=1.0,
+        max_iou_distance=0.7,
+        max_age=70, n_init=3,
+        nn_budget=100,
+        use_cuda=True,
+        num_classes=41),
     mask_roi_extractor=dict(
         type='SingleRoIExtractor',
         roi_layer=dict(type='RoIAlign', out_size=14, sample_num=2),
@@ -127,7 +144,7 @@ data = dict(
         with_mask=True,
         with_crowd=True,
         with_label=True,
-        with_track=True),
+        with_track=False),
     val=dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/instances_val_sub.json',
@@ -139,27 +156,21 @@ data = dict(
         with_mask=True,
         with_crowd=True,
         with_label=True,
-        with_track=True),
+        with_track=False),
     test=dict(
         type=dataset_type,
-        ann_file=data_root + 'annotations/instances_val_sub.json',
-        img_prefix=data_root + 'valid/JPEGImages',
-        img_scale=(640, 360),
+        ann_file=data_root + 'annotations/instances_live_sub.json',
+        img_prefix=data_root + 'live',
+        img_scale=(1280, 720),
         img_norm_cfg=img_norm_cfg,
         size_divisor=32,
         flip_ratio=0,
         with_mask=False,
         with_label=False,
         test_mode=True,
-        with_track=True))
-# original
-#optimizer = dict(type=torch.optim.SGD, lr=0.005, momentum=0.9, weight_decay=0.0001)
+        with_track=False))
 # optimizer
-#optimizer = {}
-#optimizer['SGD'] = torch.optim.SGD(lr=0.005, momentum=0.9, weight_decay=0.0001)
-#optimizer = dict(SGD=dict(type=SGD, lr=0.005, momentum=0.9, weight_decay=0.0001))
-optimizer=dict()
-#optimizer['SGD'] = dict(type='SGD',lr=0.005,momentum=0.9,weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=0.005, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
 lr_config = dict(

@@ -51,7 +51,6 @@ class AnchorHead(nn.Module):
         self.anchor_scales = anchor_scales
         self.anchor_ratios = anchor_ratios
         self.anchor_strides = anchor_strides
-        print("Anchor stides: ", self.anchor_strides)
         self.anchor_base_sizes = list(
             anchor_strides) if anchor_base_sizes is None else anchor_base_sizes
         self.target_means = target_means

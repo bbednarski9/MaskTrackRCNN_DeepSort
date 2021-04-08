@@ -1,6 +1,9 @@
-#conda environment: conda_mmdetection
-#command line to run: python3 tools/test_video_live.py configs/masktrack_rcnn_r50_fpn_1x_live.py models/MaskTrackRCNN_epoch_12.pth --out outputs/results.pkl
+#conda environment: conda_mmdetection_deepsort
+#command line to run: python3 tools/test_video_live.py configs/masktrack_rcnn_r50_fpn_1x_live_deepsort.py models/MaskTrackRCNN_epoch_12.pth --out outputs/results.pkl
 #to update after changes to code ---> !pip install .
+
+# Run full demo for results:
+# python3 tools/test_video.py configs/masktrack_rcnn_r50_fpn_1x_youtubevos.py models/MaskTrackRCNN_epoch_12.pth --out outputs/results.pkl --eval segm
 
 import argparse
 import torch
@@ -79,8 +82,6 @@ def single_frame(model, data_loader, show=False, save_path='', save_name_alt=Non
     total_frame_time = time_after_frame - time_before_frame_1
     total_frame_time_delta = time_after_frame - time_before_frame_2
     total_frame_time_forward = time_before_frame_3 - time_before_frame_2
-    #print("total frame time 1 : ", total_frame_time/1000000.0)
-    print("frame forward time : ", total_frame_time_forward/1000000.0)
 
     return results, img
 
@@ -169,9 +170,9 @@ def show_result_blended(model, img, result, score_thr=0.3):
 
 def main():
     args = parse_args()
-    data_root = '/home/bryanbed/Projects/RoMeLa_Vision/MaskTrackRCNN/data/'
-    ann_root = '/home/bryanbed/Projects/RoMeLa_Vision/MaskTrackRCNN/data/annotations/instances_live_sub.json'
-    config_root = '/home/bryanbed/Projects/RoMeLa_Vision/MaskTrackRCNN/configs/masktrack_rcnn_r50_fpn_1x_live.py'
+    data_root = os.getcwd() + '/data/'
+    ann_root = os.getcwd() + '/data/annotations/instances_live_sub.json'
+    config_root = os.getcwd() + '/configs/masktrack_rcnn_r50_fpn_1x_live.py'
 
     if args.out is not None and not args.out.endswith(('.pkl', '.pickle')):
         raise ValueError('The output file must be a pkl file.')
@@ -183,13 +184,19 @@ def main():
     cfg.model.pretrained = None
     cfg.data.test.test_mode = True
 
+    # Slow option:
     # framerate = 6
     # reswidth = 1280
     # resheight = 720
+
+    # Fast Option:
     framerate = 30
     reswidth = 640
     resheight = 480
     cfg.data.test.img_scale=(reswidth,resheight)
+
+    # WARNING: Set this parameter for a finite loop limit, or simply remove logic below to run indefinitley
+    loopLimit = 50
 
     #dataset = obj_from_dict(cfg.data.test, datasets, dict(test_mode=True))
     assert args.gpus == 1
@@ -201,8 +208,6 @@ def main():
     # configure video pipeline
     pipe = rs.pipeline()
     config = rs.config()
-
-
     config.enable_stream(rs.stream.depth, reswidth, resheight, rs.format.z16, framerate)
     config.enable_stream(rs.stream.color, reswidth, resheight, rs.format.bgr8, framerate)
     profile = pipe.start(config)
@@ -217,17 +222,17 @@ def main():
     if os.path.isdir(color_frame_path):
         shutil.rmtree(color_frame_path)
     os.makedirs(color_frame_path)
-    print(color_frame_path)
+    #print(color_frame_path)
     depth_frame_path = data_root + 'live/raw_depth/'
     if os.path.isdir(depth_frame_path):
         shutil.rmtree(depth_frame_path)
     os.makedirs(depth_frame_path)
-    print(depth_frame_path)
+    #print(depth_frame_path)
     save_path = data_root + 'live/processed/'
     if os.path.isdir(save_path):
         shutil.rmtree(save_path)
     os.makedirs(save_path)
-    print(save_path)
+    #print(save_path)
 
     with open(ann_root) as f:
         annotations = json.load(f)
@@ -241,20 +246,14 @@ def main():
     start_time_prime = time.clock_gettime_ns(time.CLOCK_MONOTONIC)
     frame_list = []
 
-    # print("Time 1: ", (time.clock_gettime_ns(time.CLOCK_MONOTONIC)-start_time_prime)/1000000.0)
-
     try:
         while run == True:
-            #print("Time 1: ", (time.clock_gettime_ns(time.CLOCK_MONOTONIC)-start_time_prime)/1000000.0)
             loopID += 1
-            if loopID > 50:
+            if loopID > loopLimit:
                 run = False
             frameID_str = 'frame_' + str(loopID) +'.jpg'
             frames = pipe.wait_for_frames()
-            #for f in frames:
-            #    total_frames += 1
 
-            #print("Time 2: ", (time.clock_gettime_ns(time.CLOCK_MONOTONIC)-start_time_prime)/1000000.0)
             # preprocess color image stream
             color_frame = frames.get_color_frame().get_data()
             color_image = np.asanyarray(color_frame)
@@ -273,30 +272,20 @@ def main():
             frame_name = depth_frame_path + frameID_str
             cv2.imwrite(frame_name, depth_image_colored)
 
-            #print(ann_root)
-            #json_frame_name = 'raw_color/frame_' + str(loopID) + 'jpeg'
             with open(ann_root) as f:
                 annotations = json.load(f)
-            #annotations = json.load(ann_root)
-            #print(annotations["videos"][0]["file_names"][0])
-            # json_frame_name = "raw_color/frame_" + str(loopID) + ".jpg"
-            #print(annotations["videos"][0]["file_names"][0])
+
             next_frame = "raw_color/" + frameID_str
             frame_list.append(next_frame)
             annotations["videos"][0]["file_names"] = frame_list
             annotations["videos"][0]["width"] = reswidth
             annotations["videos"][0]["height"] = resheight
-            #print(annotations)
-            #print(annotations["videos"][0]["file_names"][0])
 
             os.remove(ann_root)
             json_object = json.dumps(annotations, indent=4)
             with open(ann_root, 'w') as f:
                  f.write(json_object)
 
-            #print("annotation:", annotations["videos"][0]["file_names"][0])
-
-            #print("Time 3: ", (time.clock_gettime_ns(time.CLOCK_MONOTONIC)-start_time_prime)/1000000.0)
             # make a dataloader with a single image
             dataset = obj_from_dict(cfg.data.test, datasets, dict(test_mode=True))
             data_loader = build_dataloader_live(
@@ -307,20 +296,18 @@ def main():
                 dist=False,
                 shuffle=False)
 
-            #print("Time 4: ", (time.clock_gettime_ns(time.CLOCK_MONOTONIC)-start_time_prime)/1000000.0)
             result, blended_img = single_frame(model, data_loader, show=True, save_path=save_path, save_name_alt=frameID_str, color_image=color_image)
             #blended_img = show_result_blended(model, color_image, result[0], score_thr=0.3)
 
             # stack and display images
-            #images = np.hstack((color_image, depth_image_colored))
-            #images = np.hstack((color_image, img))
+            # images = np.hstack((color_image, depth_image_colored))
+            # images = np.hstack((color_image, img))
             cv2.namedWindow('D415 Example 1', cv2.WINDOW_AUTOSIZE)
             cv2.imshow('D415 Example 1', blended_img)
-            #cv2.namedWindow('D415 Example 2', cv2.WINDOW_AUTOSIZE)
+            # cv2.namedWindow('D415 Example 2', cv2.WINDOW_AUTOSIZE)
             # cv2.imshow('D415 Example 2', blended_img)
             key = cv2.waitKey(1)
             # Press esc or 'q' to close the image window
-            #print("Time 5: ", (time.clock_gettime_ns(time.CLOCK_MONOTONIC)-start_time_prime)/1000000.0)
             if key & 0xFF == ord('q') or key == 27:
                 cv2.destroyAllWindows()
                 break
@@ -339,7 +326,6 @@ def main():
     #     num_gpus=1,
     #     dist=False,
     #     shuffle=False)
-
 
     # if args.out:
     #     if not args.load_result:

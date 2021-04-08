@@ -47,6 +47,7 @@ class TrackHead(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.debug_imgs = None
         self.dynamic=dynamic
+        self.deepsort_flag = False
 
     def init_weights(self):
         for fc in self.fcs:

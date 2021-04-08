@@ -54,6 +54,7 @@ class TwoStageDetector(BaseDetector, RPNTestMixin,
         self.test_cfg = test_cfg
         # memory queue for testing
         self.prev_bboxes = None
+        self.prev_preds = None
         self.prev_roi_feats = None
         self.init_weights(pretrained=pretrained)
 
@@ -190,7 +191,7 @@ class TwoStageDetector(BaseDetector, RPNTestMixin,
             x[:len(self.bbox_roi_extractor.featmap_strides)], rois)
         cls_score, bbox_pred = self.bbox_head(roi_feats)
         img_shape = img_meta[0]['img_shape']
-        print("IMG SHAPE: ", img_shape)
+        #print("IMG SHAPE: ", img_shape)
         scale_factor = img_meta[0]['scale_factor']
         is_first = img_meta[0]['is_first']
         det_bboxes, det_labels, det_features = self.bbox_head.get_det_bboxes(
@@ -201,123 +202,167 @@ class TwoStageDetector(BaseDetector, RPNTestMixin,
             scale_factor,
             rescale=rescale,
             cfg=rcnn_test_cfg)
+        #print("DET_1: ", det_bboxes)
         if det_bboxes.nelement()==0:
             det_obj_ids=np.array([], dtype=np.int64)
             if is_first:
                 self.prev_bboxes =  None
                 self.prev_roi_feats = None
                 self.prev_det_labels = None
+                self.prev_preds = None
+                self.prev_preds_roi_feats = None
+                self.prev_preds_det_labels = None
             return det_bboxes, det_labels, det_obj_ids
 
-        # res_det_bboxes = det_bboxes.clone()
-        # if rescale:
-        #     res_det_bboxes[:, :4] *= scale_factor
-        #
-        # det_rois = bbox2roi([res_det_bboxes])
-        # det_roi_feats = self.bbox_roi_extractor(
-        #     x[:self.bbox_roi_extractor.num_inputs], det_rois)
+        res_det_bboxes = det_bboxes.clone()
+        if rescale:
+            res_det_bboxes[:, :4] *= scale_factor
+
+        det_rois = bbox2roi([res_det_bboxes])
+        det_roi_feats = self.bbox_roi_extractor(
+            x[:self.bbox_roi_extractor.num_inputs], det_rois)
         # recompute bbox match feature
 
-
-        # if is_first or (not is_first and self.prev_bboxes is None):
-        #     det_obj_ids = np.arange(det_bboxes.size(0))
-        #     # save bbox and features for later matching
-        #     self.prev_bboxes = det_bboxes
-        #     self.prev_roi_feats = det_roi_feats
-        #     self.prev_det_labels = det_labels
-        # else:
-        #
-        #     assert self.prev_roi_feats is not None
-        #     # only support one image at a time
-        #     bbox_img_n = [det_bboxes.size(0)]
-        #     prev_bbox_img_n = [self.prev_roi_feats.size(0)]
-        #     match_score = self.track_head(det_roi_feats, self.prev_roi_feats,
-        #                               bbox_img_n, prev_bbox_img_n)[0]
-        #     match_logprob = torch.nn.functional.log_softmax(match_score, dim=1)
-        #     label_delta = (self.prev_det_labels == det_labels.view(-1,1)).float()
-        #     bbox_ious = bbox_overlaps(det_bboxes[:,:4], self.prev_bboxes[:,:4])
-        #     # compute comprehensive score
-        #     comp_scores = self.track_head.compute_comp_scores(match_logprob,
-        #         det_bboxes[:,4].view(-1, 1),
-        #         bbox_ious,
-        #         label_delta,
-        #         add_bbox_dummy=True)
-        #     match_likelihood, match_ids = torch.max(comp_scores, dim =1)
-        #     # translate match_ids to det_obj_ids, assign new id to new objects
-        #     # update tracking features/bboxes of exisiting object,
-        #     # add tracking features/bboxes of new object
-        #     match_ids = match_ids.cpu().numpy().astype(np.int32)
-        #     det_obj_ids = np.ones((match_ids.shape[0]), dtype=np.int32) * (-1)
-        #     best_match_scores = np.ones((self.prev_bboxes.size(0))) * (-100)
-        #     for idx, match_id in enumerate(match_ids):
-        #         if match_id == 0:
-        #             # add new object
-        #             det_obj_ids[idx] = self.prev_roi_feats.size(0)
-        #             self.prev_roi_feats = torch.cat((self.prev_roi_feats, det_roi_feats[idx][None]), dim=0)
-        #             self.prev_bboxes = torch.cat((self.prev_bboxes, det_bboxes[idx][None]), dim=0)
-        #             self.prev_det_labels = torch.cat((self.prev_det_labels, det_labels[idx][None]), dim=0)
-        #         else:
-        #             # multiple candidate might match with previous object, here we choose the one with
-        #             # largest comprehensive score
-        #             obj_id = match_id - 1
-        #             match_score = comp_scores[idx, match_id]
-        #             if match_score > best_match_scores[obj_id]:
-        #                 det_obj_ids[idx] = obj_id
-        #                 best_match_scores[obj_id] = match_score
-        #                 # udpate feature
-        #                 self.prev_roi_feats[obj_id] = det_roi_feats[idx]
-        #                 self.prev_bboxes[obj_id] = det_bboxes[idx]
-
-        if True:
-            # do tracking
-            #print("det_bboxes: ", det_bboxes)
-            #print("det_labels: ", det_labels)
-            #print("det_obj_ids: ", det_obj_ids)
-            det_bboxes_np = det_bboxes.cpu().numpy()
+        if self.track_head.deepsort_flag:
+            # do kalman tracking
+            res2_det_bboxes = det_bboxes.clone()
+            det_bboxes_np = res2_det_bboxes.cpu().numpy()
             if det_bboxes_np.shape[1] == 5:
                 bbox_xyxy = np.compress([1,1,1,1,0],det_bboxes_np,axis=1)
                 cls_conf = np.compress([0,0,0,0,1],det_bboxes_np,axis=1)
 
-            #print("bbox_xyxy: ", bbox_xyxy)
-            #print("cls_conf: ", cls_conf)
-            #outputs = self.deepsort.update(bbox_xywh, cls_conf, im)
-            outputs = self.track_head.update(bbox_xyxy, cls_conf, det_features, det_labels, img, img_shape)
-            #print("OUTPUTS!:",outputs)
-            if outputs == []:
-                det_bboxes, det_labels, det_obj_ids = torch.tensor([]), torch.tensor([]), []
-            else:
-                det_bboxes = torch.tensor(np.compress([1,1,1,1,0,0],outputs,axis=1),dtype=torch.float32).cuda()
-                #print("bbox kalman out:", det_bboxes)
-                det_labels = torch.tensor(np.squeeze(np.compress([0,0,0,0,0,1],outputs,axis=1),axis=1),dtype=torch.int32).cuda()
-                det_obj_ids = np.squeeze(np.compress([0,0,0,0,1,0],outputs,axis=1),axis=1)
-        print("Object LABELS: ")
-        print(det_labels)
+        if is_first or (not is_first and self.prev_bboxes is None):
+            det_obj_ids = np.arange(det_bboxes.size(0))
+            # save bbox and features for later matching
+            self.prev_bboxes = det_bboxes
+            self.prev_roi_feats = det_roi_feats
+            self.prev_det_labels = det_labels
+            if self.track_head.deepsort_flag:
+                if is_first or (not is_first and self.prev_preds is None):
+                    predictions, covariances, matches, track_ids = self.track_head.update_and_predict(bbox_xyxy, cls_conf, det_features, det_labels, img, img_shape)
+                    self.prev_preds = torch.tensor(predictions, dtype=torch.float32).cuda()
+                    self.prev_matches = matches
+                    for i, (track_id, detection_idx) in enumerate(self.prev_matches):
+                        self.prev_bboxes[detection_idx] = self.prev_preds[i]
+                    # if outputs == []:
+                    #     det_bboxes_kf, det_labels_kf, det_obj_ids_kf = torch.tensor([]), torch.tensor([]), []
+                    # else:
+                    #     det_bboxes_kf = torch.tensor(np.compress([1,1,1,1,1,0,0],outputs,axis=1),dtype=torch.float32).cuda()
+                    #     det_obj_ids_kf = np.squeeze(np.compress([0,0,0,0,0,1,0],outputs,axis=1),axis=1).astype(int)
+                    #     det_labels_kf = torch.tensor(np.squeeze(np.compress([0,0,0,0,0,0,1],outputs,axis=1),axis=1),dtype=torch.int32).cuda()
+        else:
+
+            assert self.prev_roi_feats is not None
+            # only support one image at a time
+            bbox_img_n = [det_bboxes.size(0)]
+            prev_bbox_img_n = [self.prev_roi_feats.size(0)]
+            match_score = self.track_head(det_roi_feats, self.prev_roi_feats,
+                                      bbox_img_n, prev_bbox_img_n)[0]
+            match_logprob = torch.nn.functional.log_softmax(match_score, dim=1)
+            label_delta = (self.prev_det_labels == det_labels.view(-1,1)).float()
+
+
+            # if self.track_head.deepsort_flag and self.prev_preds is not None:
+            #     #self.prev_preds = torch.tensor(self.prev_preds, dtype=torch.float32).cuda()
+            #     #iou_comp = self.prev_preds
+            #     iou_comp = self.prev_pred + self.prev_bboxes - unmacthed
+            # else:
+            #     iou_comp = self.prev_bboxes
+
+            # print("111111111111111111111111")
+            # print("Prev BBOXES:", self.prev_bboxes)
+            # print("Prev PREDS: ", self.prev_preds)
+
+            if self.track_head.deepsort_flag:
+                predictions, covariances, matches, track_ids = self.track_head.update_and_predict(bbox_xyxy, cls_conf, det_features, det_labels, img, img_shape)
+                self.prev_preds = torch.tensor(predictions, dtype=torch.float32).cuda()
+                self.prev_matches = matches
+                # print("2222222222222222222222222")
+                # print("Prev BBOXES:", self.prev_bboxes)
+                # print("Prev PREDS: ", self.prev_preds)
+                # print("Prev matches: ", self.prev_matches)
+
+                for i, (track_id, detection_idx) in enumerate(self.prev_matches):
+                    self.prev_bboxes[detection_idx] = self.prev_preds[i]
+
+            # print("2222222222222222222222222")
+            # print("Prev BBOXES:", self.prev_bboxes)
+            # print("Prev PREDS: ", self.prev_preds)
+
+            bbox_ious = bbox_overlaps(det_bboxes[:,:4], self.prev_bboxes[:,:4])
+
+
+            # update KFs and get predictions if we have deepsort active
+            # if self.track_head.deepsort_flag:
+            #     predictions, covariances, matches, track_ids  = self.track_head.update_and_predict(bbox_xyxy, cls_conf, det_features, det_labels, img, img_shape)
+            #     self.prev_matches = matches
+            #     self.prev_preds = torch.tensor(predictions, dtype=torch.float32).cuda()
+                #print("PREDICTION DIMENSION ANALYSIS")
+                #print("predictions dim: ", predictions.shape)
+                # if outputs == []:
+                #     det_bboxes_kf, det_labels_kf, det_obj_ids_kf = torch.tensor([]), torch.tensor([]), []
+                # else:
+                #     det_bboxes_kf = torch.tensor(np.compress([1,1,1,1,1,0,0],outputs,axis=1),dtype=torch.float32).cuda()
+                #     det_obj_ids_kf = np.squeeze(np.compress([0,0,0,0,0,1,0],outputs,axis=1),axis=1).astype(int)
+                #     det_labels_kf = torch.tensor(np.squeeze(np.compress([0,0,0,0,0,0,1],outputs,axis=1),axis=1),dtype=torch.int32).cuda()
+
+            # compute comprehensive score
+            comp_scores = self.track_head.compute_comp_scores(match_logprob,
+                det_bboxes[:,4].view(-1, 1),
+                bbox_ious,
+                label_delta,
+                add_bbox_dummy=True)
+            match_likelihood, match_ids = torch.max(comp_scores, dim =1)
+            # translate match_ids to det_obj_ids, assign new id to new objects
+            # update tracking features/bboxes of exisiting object,
+            # add tracking features/bboxes of new object
+            match_ids = match_ids.cpu().numpy().astype(np.int32)
+            det_obj_ids = np.ones((match_ids.shape[0]), dtype=np.int32) * (-1)
+            best_match_scores = np.ones((self.prev_bboxes.size(0))) * (-100)
+            for idx, match_id in enumerate(match_ids):
+                if match_id == 0:
+                    # add new object
+                    det_obj_ids[idx] = self.prev_roi_feats.size(0)
+                    self.prev_roi_feats = torch.cat((self.prev_roi_feats, det_roi_feats[idx][None]), dim=0)
+                    self.prev_bboxes = torch.cat((self.prev_bboxes, det_bboxes[idx][None]), dim=0)
+                    self.prev_det_labels = torch.cat((self.prev_det_labels, det_labels[idx][None]), dim=0)
+                else:
+                    # multiple candidate might match with previous object, here we choose the one with
+                    # largest comprehensive score
+                    obj_id = match_id - 1
+                    match_score = comp_scores[idx, match_id]
+                    if match_score > best_match_scores[obj_id]:
+                        det_obj_ids[idx] = obj_id
+                        best_match_scores[obj_id] = match_score
+                        # udpate feature
+                        self.prev_roi_feats[obj_id] = det_roi_feats[idx]
+                        self.prev_bboxes[obj_id] = det_bboxes[idx]
+
+
         return det_bboxes, det_labels, det_obj_ids
 
     def simple_test(self, img, img_meta, proposals=None, rescale=False):
-        print("WARNING: CALLING SIMPLE_TEST")
         """Test without augmentation."""
-        print("SIMPLE TEST IMG SHAPE: ", img.shape)
-        start_time = time.clock_gettime_ns(time.CLOCK_MONOTONIC)
+        #start_time = time.clock_gettime_ns(time.CLOCK_MONOTONIC)
         assert self.with_bbox, "Bbox head must be implemented."
-        #assert self.with_track, "Track head must be implemented"
+        assert self.with_track, "Track head must be implemented"
         x = self.extract_feat(img)
 
-        time11 = time.clock_gettime_ns(time.CLOCK_MONOTONIC)
+        #time11 = time.clock_gettime_ns(time.CLOCK_MONOTONIC)
         proposal_list = self.simple_test_rpn(
             x, img_meta, self.test_cfg.rpn) if proposals is None else proposals
-        time12 = time.clock_gettime_ns(time.CLOCK_MONOTONIC)
+        #time12 = time.clock_gettime_ns(time.CLOCK_MONOTONIC)
 
         #print("Proposal List len:", len(proposal_list))
         #print("Proposal list [0] shape", proposal_list[0].size())
 
         # JANGO
-        time21 = time.clock_gettime_ns(time.CLOCK_MONOTONIC)
+        #time21 = time.clock_gettime_ns(time.CLOCK_MONOTONIC)
         det_bboxes, det_labels, det_obj_ids = self.simple_test_bboxes(
             x, img, img_meta, proposal_list, self.test_cfg.rcnn, rescale=rescale)
         bbox_results = bbox2result_with_id(det_bboxes, det_labels, det_obj_ids,
                                    self.bbox_head.num_classes)
-        time22 = time.clock_gettime_ns(time.CLOCK_MONOTONIC)
+        #time22 = time.clock_gettime_ns(time.CLOCK_MONOTONIC)
 
 
         if not self.with_mask:
@@ -326,18 +371,23 @@ class TwoStageDetector(BaseDetector, RPNTestMixin,
             segm_results = self.simple_test_mask(
                 x, img_meta, det_bboxes, det_labels,
                 rescale=rescale, det_obj_ids=det_obj_ids)
-            time23 = time.clock_gettime_ns(time.CLOCK_MONOTONIC)
+            #print("SEE SEGM RESULTS:")
+            #print("BBOX: ", det_bboxes)
+            #print("DET_LABELS: ", det_labels)
+            #time.sleep(3)
+
+            #time23 = time.clock_gettime_ns(time.CLOCK_MONOTONIC)
 
             # JANGO
-            time_after_stg2 = time.clock_gettime_ns(time.CLOCK_MONOTONIC)
-            rpn_time = time12 - time11
-            stg1_time = time22 - time21
-            stg2_time = time23 - time22
-            test_time = time_after_stg2 - start_time
-            #print("RPN time: ", rpn_time/1000000.0)
-            #print("Stage 1 time: ", stg1_time/1000000.0)
-            #print("Stage 2 time: ", stg2_time/1000000.0)
-            #print("Simple Test Time: ", test_time/1000000.0)
+            # time_after_stg2 = time.clock_gettime_ns(time.CLOCK_MONOTONIC)
+            # rpn_time = time12 - time11
+            # stg1_time = time22 - time21
+            # stg2_time = time23 - time22
+            # test_time = time_after_stg2 - start_time
+            # print("RPN time: ", rpn_time/1000000.0)
+            # print("Stage 1 time: ", stg1_time/1000000.0)
+            # print("Stage 2 time: ", stg2_time/1000000.0)
+            # print("Simple Test Time: ", test_time/1000000.0)
 
             return bbox_results, segm_results
 
@@ -347,7 +397,7 @@ class TwoStageDetector(BaseDetector, RPNTestMixin,
         If rescale is False, then returned bboxes and masks will fit the scale
         of imgs[0].
         """
-        print("WARNING: CALLING AUG_TEST")
+        #print("WARNING: CALLING AUG_TEST")
         # recompute feats to save memory
         proposal_list = self.aug_test_rpn(
             self.extract_feats(imgs), img_metas, self.test_cfg.rpn)

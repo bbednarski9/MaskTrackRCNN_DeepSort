@@ -64,13 +64,15 @@ class Track:
     """
 
     def __init__(self, mean, covariance, track_id, n_init, max_age,
-                 feature=None, cls_label=None):
+                 feature=None, cls_label=None, det_conf=None):
         self.mean = mean
         self.covariance = covariance
         self.track_id = track_id
         self.hits = 1
         self.age = 1
         self.time_since_update = 0
+        self.prev_pred = []
+        self.prev_cov = []
 
         self.state = TrackState.Tentative
         self.features = []
@@ -78,6 +80,8 @@ class Track:
             self.features.append(feature)
         if cls_label is not None:
             self.cls_label = cls_label
+        if det_conf is not None:
+            self.det_conf = det_conf
 
         self._n_init = n_init
         self._max_age = max_age
@@ -148,6 +152,9 @@ class Track:
 
         if detection.cls_label != self.cls_label:
             self.cls_label = detection.cls_label
+
+        if detection.confidence != self.det_conf:
+            self.det_conf = detection.confidence
 
 
     def mark_missed(self):
