@@ -2,7 +2,7 @@
 # Implemented in Python with Pytorch 1.6, CUDA 10.1
 
 ## Introduction
-This repo serves as a jumping-off point for anyone looking to optimize MaskTrackRCNN instance segmentation systems for real-time applications. The primary contribution of this repo is the integration of the original MaskTrackRCNN work with DeepSort real-time object tracking. For some context, the original purpose of this work was to determine whether or not the efficiency of multi-object tracking (MOT) in a MaskTrackRCNN framework (show below) could be improved by reducing the region that needs to be search for region-proposals. See Figures 1 and 2 below for an explaination of this reasoning. In short, I found that in cases presented by the YouTube-VOS dataset, the time-reduction was un-noticable likely due to the optimization of non-max supression for the region proposal network. However, object tracking from deepsort can still be useful for tracking trajectories of objects in many real-time applications - providing a sort of "intuition" for where objects will be in future frames. I will not be integrating this code at the sytem level, so feel free to use it at will, however I will not be supportuing this repo regularly after a few weeks from this code's publication.
+This repo serves as a jumping-off point for anyone looking to optimize MaskTrackRCNN instance segmentation systems for real-time applications. The primary contribution of this repo is the integration of the original MaskTrackRCNN work with DeepSort real-time object tracking. For some context, the original purpose of this work was to determine whether or not the efficiency of multi-object tracking (MOT) in a MaskTrackRCNN framework (show below) could be improved by reducing the region that needs to be search for region-proposals. See Figure 1 below for an explaination of this reasoning. In short, I found that in cases presented by the YouTube-VOS dataset, the time-reduction was un-noticable likely due to the optimization of non-max supression for the region proposal network. However, object tracking from deepsort can still be useful for tracking trajectories of objects in many real-time applications - providing a sort of "intuition" for where objects will be in future frames. I will not be integrating this code at the sytem level, so feel free to use it at will, however I will not be supportuing this repo regularly after a few weeks from this code's publication.
 
 MackTrackRCNN Paper:
 ```
@@ -30,10 +30,7 @@ DeepSort Paper:
 [DeepSort Python Implementatin Github](https://github.com/ZQPei/deep_sort_pytorch)
 
 <img src='doc/MaskTrackRCNN_DeepSort.png'>
-<figcaption>Figure 1</figcaption>
-
-<img src='doc/deepsort_timing.png'>
-<figcaption>Figure 2</figcaption>
+<figcaption>Figure 1: original idea was to use the anticipated object locations to reduce the region proposal network's search area. This reduction was empirically found to be negligable. However, this system could still be used to integrate semantic segmentation with robotic perception algoriothms & path planning.</figcaption>
 
 
 ## Installation/Training
