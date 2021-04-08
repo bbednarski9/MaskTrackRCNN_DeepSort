@@ -29,6 +29,11 @@ DeepSort Paper:
 ```
 [DeepSort Python Implementatin Github](https://github.com/ZQPei/deep_sort_pytorch)
 
+<img src='doc/MaskTrackRCNN_DeepSort.png'>
+<figcaption>Figure 1</figcaption>
+
+<img src='doc/deepsort_timing'>
+<figcaption>Figure 2</figcaption>
 
 In this work, a new task video instance segmentation is presented. Video instance segmentation extends the image instance segmentation task from the image domain to the video domain. The new problem aims at **simultaneous detection, segmentation and tracking** of object instances in videos.
 YouTubeVIS, a new dataset tailored for this task is collected based on the current largest video object segmentation dataset [YouTubeVOS](youtube-vos.org). Sample annotations of a video clip can be seen below.
